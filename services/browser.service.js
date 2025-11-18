@@ -41,10 +41,12 @@ export const initBrowser = async () => {
     });
 
     const [page] = await browser.pages();
-    
-    // Set zoom to 50%
-    await page.evaluate(() => {
-        document.body.style.zoom = '0.5';
+
+    // Set viewport to full size to ensure main window is full
+    await page.setViewport({
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 1
     });
 
     const preloadFile = readFileSync('./inject.js', 'utf8');

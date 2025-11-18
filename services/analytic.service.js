@@ -164,7 +164,7 @@ export const downloadAndUploadReports = async (submissionId) => {
                 `${baseUrl}/download/${submissionId}/integrity-pdf`,
                 {
                     headers: {
-                        'ax-access-token': accessToken
+                        'x-access-token': accessToken
                     }
                 }
             );
@@ -237,7 +237,7 @@ export const downloadAndUploadReports = async (submissionId) => {
                 `${baseUrl}/download/${submissionId}/aiw`,
                 {
                     headers: {
-                        'ax-access-token': accessToken
+                        'x-access-token': accessToken
                     }
                 }
             );

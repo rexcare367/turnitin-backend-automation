@@ -155,3 +155,36 @@ export const getEssayWithUser = async (essayId) => {
     }
 }
 
+/**
+ * Get essay by submission_id with user information
+ */
+export const getEssayBySubmissionId = async (submissionId) => {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('essay_uploads')
+            .select(`
+                *,
+                users!essay_uploads_user_id_fkey (
+                    id,
+                    telegram_id,
+                    username,
+                    first_name,
+                    last_name
+                )
+            `)
+            .eq('submission_id', submissionId)
+            .single();
+        
+        if (error) {
+            console.error('✗ Error fetching essay by submission_id:', error);
+            return null;
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('✗ Error in getEssayBySubmissionId:', error);
+        return null;
+    }
+}
+

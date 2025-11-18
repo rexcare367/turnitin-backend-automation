@@ -3,6 +3,8 @@ import { config } from '../config/index.js'
 import { getAccessToken } from './browser.service.js'
 import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { getEssayBySubmissionId } from './essay.service.js'
+import { sendFailureNotification } from './telegram.service.js'
 
 /**
  * Upsert analytic results to Supabase
@@ -99,6 +101,32 @@ export const upsertAnalyticResults = async (statusResponse) => {
         console.log(`  - Fetch attempts: ${currentFetchAttempts + 1}`);
         console.log(`  - Status: ${statusResponse.status}`);
         console.log(`  - Processing: ${statusResponse.is_processing}`);
+        
+        // Check if analysis failed and send notification to user
+        if (statusResponse.status === 'failed') {
+            console.log('\n⚠️ Analysis failed - sending notification to user...');
+            try {
+                const essayWithUser = await getEssayBySubmissionId(statusResponse.id);
+                if (essayWithUser?.users?.telegram_id) {
+                    // Get error message from status response
+                    const errorMessage = statusResponse.similarity_report_error || 
+                                       statusResponse.ai_report_error || 
+                                       statusResponse.authorship_flags_error || 
+                                       'Analysis processing failed';
+                    
+                    await sendFailureNotification(
+                        essayWithUser.users.telegram_id, 
+                        essayWithUser, 
+                        errorMessage
+                    );
+                    console.log('✓ Failure notification sent to user');
+                } else {
+                    console.log('⚠️ Could not send failure notification: essay or user not found');
+                }
+            } catch (error) {
+                console.error('✗ Error sending failure notification:', error);
+            }
+        }
         
         return true;
     } catch (error) {

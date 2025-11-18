@@ -136,6 +136,34 @@ export const upsertAnalyticResults = async (statusResponse) => {
 }
 
 /**
+ * Check if there is any file currently being processed
+ * @returns {Promise<boolean>} True if there's a processing file, false otherwise
+ */
+export const hasProcessingFile = async () => {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('analytic_results')
+            .select('id, is_processing')
+            .eq('is_processing', true)
+            .limit(1)
+            .maybeSingle();
+        
+        if (error) {
+            console.error('✗ Error checking for processing files:', error);
+            return false; // On error, assume no processing file to allow polling
+        }
+        
+        // If data exists, there's a processing file
+        // maybeSingle() returns null when no rows found, which is fine
+        return !!data;
+    } catch (error) {
+        console.error('✗ Error in hasProcessingFile:', error);
+        return false; // On error, assume no processing file to allow polling
+    }
+}
+
+/**
  * Get analytic results by submission ID
  */
 export const getAnalyticResults = async (submissionId) => {

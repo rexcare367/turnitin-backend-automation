@@ -3,16 +3,28 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { config } from '../config/index.js'
 import { sleep } from '../utils/helpers.js'
+import { hasProcessingFile } from './analytic.service.js'
 
 /**
  * Poll for a queued essay in Supabase
  * Checks every 10 seconds until an essay is found
+ * Never polls if there's already a file being processed
  */
 export const pollForQueuedEssay = async () => {
     let pollCount = 0;
     
     while (true) {
         try {
+            // First, check if there's already a file being processed
+            const isProcessing = await hasProcessingFile();
+            if (isProcessing) {
+                const timestamp = new Date().toLocaleTimeString();
+                console.log(`\n[${timestamp}] ⏸️  File is currently processing. Skipping database poll...`);
+                console.log(`   ⏳ Waiting for processing to complete. Next check in 10 seconds...`);
+                await sleep(config.pollingInterval);
+                continue; // Skip polling and wait
+            }
+            
             pollCount++;
             const timestamp = new Date().toLocaleTimeString();
             console.log(`\n[${timestamp}] 📊 Polling database (attempt #${pollCount})...`);

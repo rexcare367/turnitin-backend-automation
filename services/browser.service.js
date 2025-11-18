@@ -142,6 +142,8 @@ export const setupInterceptors = (page) => {
                         console.log('\n✓✓✓ FILE PROCESSING COMPLETED! ✓✓✓');
                         
                         // Download and upload reports to Supabase
+                        // Note: Report URLs will be included in completion notification
+                        // when sent from completeFileUpload function
                         try {
                             await downloadAndUploadReports(responseData.id);
                         } catch (error) {
@@ -384,8 +386,9 @@ export const completeFileUpload = async (page, essay, localFilePath) => {
                     console.log('\n✓✓✓ FILE FULLY PROCESSED AND READY! ✓✓✓');
                     
                     // Download and upload reports to Supabase
+                    let reportUrls = { similarity_report_url: null, ai_report_url: null };
                     try {
-                        await downloadAndUploadReports(latestStatusResponse.id);
+                        reportUrls = await downloadAndUploadReports(latestStatusResponse.id);
                     } catch (error) {
                         console.error('✗ Error downloading/uploading reports:', error.message);
                     }
@@ -393,13 +396,14 @@ export const completeFileUpload = async (page, essay, localFilePath) => {
                     // Update status to completed
                     await updateEssayStatus(essay.id, 'completed');
                     
-                    // Send completion notification with analytic results
+                    // Send completion notification with analytic results and report URLs
                     const essayWithUser = await getEssayWithUser(essay.id);
                     if (essayWithUser?.users?.telegram_id) {
                         await sendCompletionNotification(
                             essayWithUser.users.telegram_id, 
                             essayWithUser, 
-                            latestStatusResponse
+                            latestStatusResponse,
+                            reportUrls
                         );
                     }
                     

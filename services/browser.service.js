@@ -502,8 +502,61 @@ export const setupCaptchaListener = (page, browser, onEssayReceived) => {
                 // Handle different stages
                 if (currentStage === 'INITIAL_CHALLENGE') {
                     console.log('[INITIAL_CHALLENGE] ✓ Challenge page resolved, waiting for login form...');
-                    currentStage = 'LOGIN_FORM';
-                    captchaSolvedForCurrentStage = false;
+                    
+                    // Wait for the email field to appear (with longer timeout)
+                    try {
+                        console.log('[INITIAL_CHALLENGE] Waiting for email field to appear...');
+                        await page.waitForSelector('#email', { timeout: 15000 });
+                        console.log('[INITIAL_CHALLENGE] ✓ Email field found!');
+                        
+                        // Also wait for password field
+                        await page.waitForSelector('#password', { timeout: 5000 });
+                        console.log('[INITIAL_CHALLENGE] ✓ Password field found!');
+                        
+                        currentStage = 'LOGIN_FORM';
+                        captchaSolvedForCurrentStage = false;
+                        
+                        // Check if there's a turnstile captcha on the login form
+                        const hasTurnstile = await page.evaluate(() => {
+                            return document.querySelector('#cf-turnstile') !== null;
+                        });
+                        
+                        if (hasTurnstile) {
+                            console.log('[INITIAL_CHALLENGE] ✓ Login form has turnstile captcha, waiting for it to be detected...');
+                        } else {
+                            console.log('[INITIAL_CHALLENGE] ⚠ No turnstile detected on login form, proceeding with login...');
+                            // If no captcha, try to login directly
+                            authAttemptCount++;
+                            console.log(`\n=== Login Attempt ${authAttemptCount}/${config.maxAuthAttempts} ===`);
+                            const loginSuccess = await handleLoginProcess(page);
+                            
+                            if (loginSuccess) {
+                                console.log('✓✓✓ Authentication completed successfully! ✓✓✓\n');
+                                currentStage = 'DASHBOARD';
+                                captchaSolvedForCurrentStage = false;
+                                await onEssayReceived();
+                            } else {
+                                console.log('✗ Login failed');
+                                if (authAttemptCount < config.maxAuthAttempts) {
+                                    console.log(`⟳ Retrying... (${config.maxAuthAttempts - authAttemptCount} attempts remaining)`);
+                                    captchaSolvedForCurrentStage = false;
+                                    await page.goto('https://turndetect.com/login');
+                                } else {
+                                    console.log(`✗✗✗ Maximum login attempts (${config.maxAuthAttempts}) reached ✗✗✗`);
+                                    await browser.close();
+                                    process.exit(1);
+                                }
+                            }
+                        }
+                    } catch (waitError) {
+                        console.log('[INITIAL_CHALLENGE] ✗ Login form fields not found after challenge resolution');
+                        console.log('[INITIAL_CHALLENGE] Error:', waitError.message);
+                        console.log('[INITIAL_CHALLENGE] Current URL:', page.url());
+                        console.log('[INITIAL_CHALLENGE] Reloading page...');
+                        await page.goto('https://turndetect.com/login');
+                        currentStage = 'INITIAL_CHALLENGE';
+                        captchaSolvedForCurrentStage = false;
+                    }
                     
                 } else if (currentStage === 'LOGIN_FORM') {
                     console.log('[LOGIN_FORM] ✓ Login form turnstile resolved!');

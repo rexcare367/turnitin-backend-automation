@@ -143,9 +143,9 @@ export const hasProcessingFile = async () => {
     try {
         const supabase = getSupabaseClient();
         const { data, error } = await supabase
-            .from('analytic_results')
-            .select('id, is_processing')
-            .eq('is_processing', true)
+            .from('essay_uplaods')
+            .select('id, status')
+            .eq('status', 'processing')
             .limit(1)
             .maybeSingle();
         

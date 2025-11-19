@@ -226,7 +226,7 @@ export const handleLoginProcess = async (page) => {
         }
         
         // Wait additional time for navigation to complete
-        await sleep(2000);
+        await sleep(5000);
         
         // Check if we're on the dashboard
         const currentUrl = page.url();
@@ -523,6 +523,37 @@ export const setupCaptchaListener = (page, browser, onEssayReceived) => {
                         
                         if (hasTurnstile) {
                             console.log('[INITIAL_CHALLENGE] ✓ Login form has turnstile captcha, waiting for it to be detected...');
+                            
+                            // Set a 10-second timeout to proceed with login if captcha doesn't appear/solve
+                            const captchaTimeout = setTimeout(async () => {
+                                if (currentStage === 'LOGIN_FORM' && !captchaSolvedForCurrentStage) {
+                                    console.log('[LOGIN_FORM] ⏱ Captcha timeout (10s) - proceeding with login anyway...');
+                                    authAttemptCount++;
+                                    console.log(`\n=== Login Attempt ${authAttemptCount}/${config.maxAuthAttempts} ===`);
+                                    const loginSuccess = await handleLoginProcess(page);
+                                    
+                                    if (loginSuccess) {
+                                        console.log('✓✓✓ Authentication completed successfully! ✓✓✓\n');
+                                        currentStage = 'DASHBOARD';
+                                        captchaSolvedForCurrentStage = false;
+                                        await onEssayReceived();
+                                    } else {
+                                        console.log('✗ Login failed');
+                                        if (authAttemptCount < config.maxAuthAttempts) {
+                                            console.log(`⟳ Retrying... (${config.maxAuthAttempts - authAttemptCount} attempts remaining)`);
+                                            captchaSolvedForCurrentStage = false;
+                                            await page.goto('https://turndetect.com/login');
+                                        } else {
+                                            console.log(`✗✗✗ Maximum login attempts (${config.maxAuthAttempts}) reached ✗✗✗`);
+                                            await browser.close();
+                                            process.exit(1);
+                                        }
+                                    }
+                                }
+                            }, 10000);
+                            
+                            // Store the timeout so it can be cleared if captcha is solved
+                            page._loginCaptchaTimeout = captchaTimeout;
                         } else {
                             console.log('[INITIAL_CHALLENGE] ⚠ No turnstile detected on login form, proceeding with login...');
                             // If no captcha, try to login directly
@@ -560,6 +591,13 @@ export const setupCaptchaListener = (page, browser, onEssayReceived) => {
                     
                 } else if (currentStage === 'LOGIN_FORM') {
                     console.log('[LOGIN_FORM] ✓ Login form turnstile resolved!');
+                    
+                    // Clear the captcha timeout since captcha was solved
+                    if (page._loginCaptchaTimeout) {
+                        clearTimeout(page._loginCaptchaTimeout);
+                        page._loginCaptchaTimeout = null;
+                        console.log('[LOGIN_FORM] ✓ Captcha timeout cleared');
+                    }
                     
                     authAttemptCount++;
                     console.log(`\n=== Login Attempt ${authAttemptCount}/${config.maxAuthAttempts} ===`);

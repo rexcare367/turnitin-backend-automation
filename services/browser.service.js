@@ -262,9 +262,19 @@ export const handleUploadProcess = async (page, essay, localFilePath) => {
         }
         
         console.log('Looking for upload button on dashboard...');
-        await page.waitForSelector('.tutorial-upload-button', { timeout: 30000 });
+        await page.waitForSelector('.tutorial-upload-button', { 
+            timeout: 30000,
+            visible: true 
+        });
         console.log('✓ Found upload button, clicking...');
-        await page.click('.tutorial-upload-button');
+        
+        // Use evaluate to click the element directly to avoid detachment issues
+        await page.evaluate(() => {
+            const button = document.querySelector('.tutorial-upload-button');
+            if (button) {
+                button.click();
+            }
+        });
         
         // Wait for the upload modal to appear
         console.log('Waiting for upload modal to appear...');

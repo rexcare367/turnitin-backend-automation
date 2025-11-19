@@ -145,7 +145,7 @@ export const hasProcessingFile = async () => {
         const { data, error } = await supabase
             .from('essay_uplaods')
             .select('id, status')
-            .in('status', ['processing', 'uploading'])
+            .in('status', ['processing', 'uploading', 'uploaded'])
             .limit(1)
             .maybeSingle();
         

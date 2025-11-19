@@ -143,7 +143,7 @@ export const hasProcessingFile = async () => {
     try {
         const supabase = getSupabaseClient();
         const { data, error } = await supabase
-            .from('essay_uplaods')
+            .from('essay_uploads')
             .select('id, status')
             .in('status', ['processing', 'uploading', 'uploaded'])
             .limit(1)

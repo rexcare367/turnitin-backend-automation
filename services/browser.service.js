@@ -246,11 +246,103 @@ export const handleLoginProcess = async (page) => {
 }
 
 /**
+ * Check if user is still logged in
+ */
+export const checkLoginStatus = async (page) => {
+    try {
+        const currentUrl = page.url();
+        console.log('Checking login status. Current URL:', currentUrl);
+        
+        // Check if we're on the dashboard
+        if (currentUrl.includes('/dashboard')) {
+            // Double check by looking for dashboard elements
+            const hasDashboardElements = await page.evaluate(() => {
+                const uploadButton = document.querySelector('.tutorial-upload-button');
+                return uploadButton !== null;
+            });
+            
+            if (hasDashboardElements) {
+                console.log('✓ User is logged in (dashboard confirmed)');
+                return true;
+            }
+        }
+        
+        // Check if we're on login page
+        if (currentUrl.includes('/login')) {
+            console.log('✗ User is on login page (logged out)');
+            return false;
+        }
+        
+        // Try to navigate to dashboard and see if we get redirected to login
+        console.log('Attempting to navigate to dashboard to verify login status...');
+        await page.goto('https://turndetect.com/dashboard', { waitUntil: 'networkidle0', timeout: 10000 });
+        await sleep(2000);
+        
+        const newUrl = page.url();
+        if (newUrl.includes('/dashboard')) {
+            console.log('✓ User is logged in');
+            return true;
+        } else {
+            console.log('✗ User is logged out (redirected away from dashboard)');
+            return false;
+        }
+    } catch (error) {
+        console.error('✗ Error checking login status:', error.message);
+        return false;
+    }
+}
+
+/**
+ * Re-login if session expired
+ */
+export const reloginIfNeeded = async (page, browser, onEssayReceived) => {
+    console.log('\n🔄 Re-authenticating...');
+    
+    // Reset auth state
+    currentStage = 'INITIAL_CHALLENGE';
+    captchaSolvedForCurrentStage = false;
+    authAttemptCount = 0;
+    
+    // Navigate to login page
+    await page.goto('https://turndetect.com/login', { waitUntil: 'networkidle0' });
+    await sleep(2000);
+    
+    // Wait for login to complete (will be handled by captcha listener)
+    console.log('Waiting for re-authentication to complete...');
+    
+    // Wait up to 60 seconds for dashboard stage
+    let waitTime = 0;
+    while (currentStage !== 'DASHBOARD' && waitTime < 60000) {
+        await sleep(1000);
+        waitTime += 1000;
+    }
+    
+    if (currentStage === 'DASHBOARD') {
+        console.log('✓ Re-authentication successful!');
+        return true;
+    } else {
+        console.log('✗ Re-authentication failed or timed out');
+        return false;
+    }
+}
+
+/**
  * Handles the upload process on dashboard
  */
-export const handleUploadProcess = async (page, essay, localFilePath) => {
+export const handleUploadProcess = async (page, essay, localFilePath, browser, onEssayReceived) => {
     try {
         console.log('\n📤 Starting upload process for essay:', essay.file_name);
+        
+        // Check if still logged in before proceeding
+        const isLoggedIn = await checkLoginStatus(page);
+        if (!isLoggedIn) {
+            console.log('⚠ Session expired! Need to re-login...');
+            const reloginSuccess = await reloginIfNeeded(page, browser, onEssayReceived);
+            
+            if (!reloginSuccess) {
+                throw new Error('Re-authentication failed');
+            }
+        }
         
         // Update status to processing and send notification
         await updateEssayStatus(essay.id, 'processing');
@@ -300,6 +392,7 @@ export const handleUploadProcess = async (page, essay, localFilePath) => {
         if (essayWithUser?.users?.telegram_id) {
             await sendFailureNotification(essayWithUser.users.telegram_id, essayWithUser, error.message);
         }
+        throw error;
     }
 }
 

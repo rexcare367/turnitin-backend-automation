@@ -14,6 +14,95 @@ const initBot = () => {
 }
 
 /**
+ * Multi-language translations
+ * Supported languages: en (English), zh (Chinese - includes zh-hans, zh-hant, zh-TW, zh-CN)
+ */
+const translations = {
+    en: {
+        completion: {
+            title: '✅ <b>Document Analysis Complete!</b>',
+            file: '📄 <b>File:</b>',
+            submissionId: '🆔 <b>Submission ID:</b>',
+            results: '📊 <b>Analysis Results:</b>',
+            aiDetection: '🤖 <b>AI Detection:</b>',
+            similarity: '📄 <b>Similarity:</b>',
+            wordCount: '📝 <b>Word Count:</b>',
+            pageCount: '📑 <b>Page Count:</b>',
+            hiddenText: '⚠️ <b>Hidden Text:</b>',
+            hiddenTextInstances: 'instances',
+            confusableChars: '⚠️ <b>Confusable Characters:</b>',
+            suspectWords: '⚠️ <b>Suspect Words:</b>',
+            downloadReports: '📎 <b>Download Reports:</b>',
+            similarityReport: '📄 Similarity Report',
+            aiReport: '🤖 AI Detection Report',
+            noResults: 'No analytic results available yet.',
+            reportsGenerating: '⚠️ Reports are being generated and will be available shortly.'
+        },
+        failure: {
+            title: '❌ <b>Document Analysis Failed</b>',
+            file: '📄 <b>File:</b>',
+            error: '⚠️ <b>Error:</b>',
+            unknownError: 'Unknown error occurred',
+            helpText: 'Please try uploading your document again or contact support if the issue persists.'
+        },
+        processing: {
+            title: '⏳ <b>Document Processing Started</b>',
+            file: '📄 <b>File:</b>',
+            helpText: "Your document is being analyzed. You'll receive a notification when it's complete."
+        }
+    },
+    zh: {
+        completion: {
+            title: '✅ <b>文件分析完成！</b>',
+            file: '📄 <b>檔案：</b>',
+            submissionId: '🆔 <b>提交編號：</b>',
+            results: '📊 <b>分析結果：</b>',
+            aiDetection: '🤖 <b>AI 檢測：</b>',
+            similarity: '📄 <b>相似度：</b>',
+            wordCount: '📝 <b>字數：</b>',
+            pageCount: '📑 <b>頁數：</b>',
+            hiddenText: '⚠️ <b>隱藏文字：</b>',
+            hiddenTextInstances: '處',
+            confusableChars: '⚠️ <b>易混淆字元：</b>',
+            suspectWords: '⚠️ <b>可疑字詞：</b>',
+            downloadReports: '📎 <b>下載報告：</b>',
+            similarityReport: '📄 相似度報告',
+            aiReport: '🤖 AI 檢測報告',
+            noResults: '暫無分析結果。',
+            reportsGenerating: '⚠️ 報告生成中，稍後即可查看。'
+        },
+        failure: {
+            title: '❌ <b>文件分析失敗</b>',
+            file: '📄 <b>檔案：</b>',
+            error: '⚠️ <b>錯誤：</b>',
+            unknownError: '發生未知錯誤',
+            helpText: '請再次嘗試上傳您的文件，如問題持續，請聯繫客服。'
+        },
+        processing: {
+            title: '⏳ <b>文件處理中</b>',
+            file: '📄 <b>檔案：</b>',
+            helpText: '您的文件正在分析中，完成後將會通知您。'
+        }
+    }
+}
+
+/**
+ * Get translations for specified language (defaults to English)
+ */
+const getTranslations = (languageCode) => {
+    // Normalize language code to lowercase
+    const normalizedLang = languageCode?.toLowerCase();
+    
+    // Map language codes to translations
+    if (normalizedLang === 'zh-hans' || normalizedLang?.startsWith('zh')) {
+        return translations.zh;
+    }
+    
+    // Default to English
+    return translations.en;
+}
+
+/**
  * Escape HTML entities for Telegram HTML parse mode
  */
 const escapeHtml = (text) => {
@@ -29,44 +118,44 @@ const escapeHtml = (text) => {
 /**
  * Format analytic results for Telegram message
  */
-const formatAnalyticResults = (analyticData) => {
+const formatAnalyticResults = (analyticData, t) => {
     if (!analyticData) {
-        return 'No analytic results available yet.';
+        return t.completion.noResults;
     }
     
-    let message = '📊 <b>Analysis Results:</b>\n\n';
+    let message = `${t.completion.results}\n\n`;
     
     // AI Detection
     if (analyticData.ai_match_percentage !== null) {
-        message += `🤖 <b>AI Detection:</b> ${escapeHtml(analyticData.ai_match_percentage)}%\n`;
+        message += `${t.completion.aiDetection} ${escapeHtml(analyticData.ai_match_percentage)}%\n`;
     }
     
     // Similarity/Plagiarism
     if (analyticData.overall_match_percentage !== null) {
-        message += `📄 <b>Similarity:</b> ${escapeHtml(analyticData.overall_match_percentage)}%\n`;
+        message += `${t.completion.similarity} ${escapeHtml(analyticData.overall_match_percentage)}%\n`;
     }
     
     // Document stats
     if (analyticData.word_count !== null) {
-        message += `📝 <b>Word Count:</b> ${escapeHtml(analyticData.word_count)}\n`;
+        message += `${t.completion.wordCount} ${escapeHtml(analyticData.word_count)}\n`;
     }
     if (analyticData.page_count !== null) {
-        message += `📑 <b>Page Count:</b> ${escapeHtml(analyticData.page_count)}\n`;
+        message += `${t.completion.pageCount} ${escapeHtml(analyticData.page_count)}\n`;
     }
     
     // Hidden text detection
     if (analyticData.hidden_text_instances_count > 0) {
-        message += `⚠️ <b>Hidden Text:</b> ${escapeHtml(analyticData.hidden_text_instances_count)} instances\n`;
+        message += `${t.completion.hiddenText} ${escapeHtml(analyticData.hidden_text_instances_count)} ${t.completion.hiddenTextInstances}\n`;
     }
     
     // Confusable characters
     if (analyticData.confusable_count_total > 0) {
-        message += `⚠️ <b>Confusable Characters:</b> ${escapeHtml(analyticData.confusable_count_total)}\n`;
+        message += `${t.completion.confusableChars} ${escapeHtml(analyticData.confusable_count_total)}\n`;
     }
     
     // Suspect words
     if (analyticData.suspect_words_count > 0) {
-        message += `⚠️ <b>Suspect Words:</b> ${escapeHtml(analyticData.suspect_words_count)}\n`;
+        message += `${t.completion.suspectWords} ${escapeHtml(analyticData.suspect_words_count)}\n`;
     }
     
     return message;
@@ -75,26 +164,26 @@ const formatAnalyticResults = (analyticData) => {
 /**
  * Format report URLs for Telegram message
  */
-const formatReportUrls = (reportUrls) => {
+const formatReportUrls = (reportUrls, t) => {
     if (!reportUrls) {
         return '';
     }
     
-    let message = '\n📎 <b>Download Reports:</b>\n\n';
+    let message = `\n${t.completion.downloadReports}\n\n`;
     let hasReports = false;
     
     if (reportUrls.similarity_report_url) {
-        message += `📄 <a href="${reportUrls.similarity_report_url}">Similarity Report</a>\n`;
+        message += `<a href="${reportUrls.similarity_report_url}">${t.completion.similarityReport}</a>\n`;
         hasReports = true;
     }
     
     if (reportUrls.ai_report_url) {
-        message += `🤖 <a href="${reportUrls.ai_report_url}">AI Detection Report</a>\n`;
+        message += `<a href="${reportUrls.ai_report_url}">${t.completion.aiReport}</a>\n`;
         hasReports = true;
     }
     
     if (!hasReports) {
-        return '\n⚠️ Reports are being generated and will be available shortly.';
+        return `\n${t.completion.reportsGenerating}`;
     }
     
     return message;
@@ -103,7 +192,7 @@ const formatReportUrls = (reportUrls) => {
 /**
  * Send completion notification to user
  * @param {string} telegramId - Telegram user ID
- * @param {object} essayData - Essay data
+ * @param {object} essayData - Essay data with user information
  * @param {object} analyticData - Analytic results data
  * @param {object} reportUrls - Report URLs object with similarity_report_url and ai_report_url
  */
@@ -115,18 +204,22 @@ export const sendCompletionNotification = async (telegramId, essayData, analytic
             return false;
         }
         
-        console.log(`\n📱 Sending completion notification to Telegram ID: ${telegramId}`);
+        // Get user's language preference
+        const languageCode = essayData.users?.language_code || 'en';
+        const t = getTranslations(languageCode);
         
-        let message = `✅ <b>Document Analysis Complete!</b>\n\n`;
-        message += `📄 <b>File:</b> ${escapeHtml(essayData.file_name)}\n`;
-        message += `🆔 <b>Submission ID:</b> ${escapeHtml(essayData.submission_id)}\n\n`;
+        console.log(`\n📱 Sending completion notification to Telegram ID: ${telegramId} (Language: ${languageCode})`);
+        
+        let message = `${t.completion.title}\n\n`;
+        message += `${t.completion.file} ${escapeHtml(essayData.file_name)}\n`;
+        message += `${t.completion.submissionId} ${escapeHtml(essayData.submission_id)}\n\n`;
         
         // Add analytic results
-        message += formatAnalyticResults(analyticData);
+        message += formatAnalyticResults(analyticData, t);
         
         // Add report URLs if available
         if (reportUrls) {
-            message += formatReportUrls(reportUrls);
+            message += formatReportUrls(reportUrls, t);
         }
         
         await telegramBot.sendMessage(telegramId, message, { 
@@ -153,12 +246,16 @@ export const sendFailureNotification = async (telegramId, essayData, errorMessag
             return false;
         }
         
-        console.log(`\n📱 Sending failure notification to Telegram ID: ${telegramId}`);
+        // Get user's language preference
+        const languageCode = essayData.users?.language_code || 'en';
+        const t = getTranslations(languageCode);
         
-        let message = `❌ <b>Document Analysis Failed</b>\n\n`;
-        message += `📄 <b>File:</b> ${escapeHtml(essayData.file_name)}\n`;
-        message += `⚠️ <b>Error:</b> ${escapeHtml(errorMessage || 'Unknown error occurred')}\n\n`;
-        message += `Please try uploading your document again or contact support if the issue persists.`;
+        console.log(`\n📱 Sending failure notification to Telegram ID: ${telegramId} (Language: ${languageCode})`);
+        
+        let message = `${t.failure.title}\n\n`;
+        message += `${t.failure.file} ${escapeHtml(essayData.file_name)}\n`;
+        message += `${t.failure.error} ${escapeHtml(errorMessage || t.failure.unknownError)}\n\n`;
+        message += t.failure.helpText;
         
         await telegramBot.sendMessage(telegramId, message, { 
             parse_mode: 'HTML' 
@@ -183,11 +280,15 @@ export const sendProcessingNotification = async (telegramId, essayData) => {
             return false;
         }
         
-        console.log(`\n📱 Sending processing notification to Telegram ID: ${telegramId}`);
+        // Get user's language preference
+        const languageCode = essayData.users?.language_code || 'en';
+        const t = getTranslations(languageCode);
         
-        let message = `⏳ <b>Document Processing Started</b>\n\n`;
-        message += `📄 <b>File:</b> ${escapeHtml(essayData.file_name)}\n`;
-        message += `\nYour document is being analyzed. You'll receive a notification when it's complete.`;
+        console.log(`\n📱 Sending processing notification to Telegram ID: ${telegramId} (Language: ${languageCode})`);
+        
+        let message = `${t.processing.title}\n\n`;
+        message += `${t.processing.file} ${escapeHtml(essayData.file_name)}\n`;
+        message += `\n${t.processing.helpText}`;
         
         await telegramBot.sendMessage(telegramId, message, { 
             parse_mode: 'HTML' 

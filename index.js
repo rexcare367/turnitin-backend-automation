@@ -13,7 +13,7 @@ import {
  * Continuous essay processing loop
  * Polls database only when ready for next essay (not while processing)
  */
-const startContinuousProcessing = async (page) => {
+const startContinuousProcessing = async (page, browser, onAuthCompleted) => {
     console.log('\n🔄 Starting continuous essay processing loop...');
     console.log('📊 Will poll database every 10 seconds when ready for new essays\n');
     
@@ -43,8 +43,9 @@ const startContinuousProcessing = async (page) => {
             setCurrentEssay(currentEssay, currentLocalFilePath);
             
             // Process the essay (upload to Turnitin)
+            // This will check login status and re-login if needed
             console.log('🚀 [PROCESSING] Uploading to Turnitin...');
-            await handleUploadProcess(page, currentEssay, currentLocalFilePath);
+            await handleUploadProcess(page, currentEssay, currentLocalFilePath, browser, onAuthCompleted);
             
             // Navigate back to dashboard for next essay
             console.log('🏠 [PROCESSING] Returning to dashboard...');
@@ -72,15 +73,18 @@ const main = async () => {
     // Setup request/response interceptors
     await setupInterceptors(page);
     
-    // Setup captcha listener with callback for when ready to process essays
-    setupCaptchaListener(page, browser, async () => {
-        // This callback is called after successful login
+    // Define the auth completion callback
+    const onAuthCompleted = async () => {
+        // This callback is called after successful login or re-login
         console.log('\n✓✓✓ Authentication completed! ✓✓✓');
         console.log('🎯 Now entering continuous processing mode...\n');
         
         // Start the continuous processing loop
-        await startContinuousProcessing(page);
-    });
+        await startContinuousProcessing(page, browser, onAuthCompleted);
+    };
+    
+    // Setup captcha listener with callback for when ready to process essays
+    setupCaptchaListener(page, browser, onAuthCompleted);
     
     // Start the process by navigating to login page
     console.log('=== Starting Process ===');
